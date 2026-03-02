@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block content %}
+<section>
+  <h2>Panel de administración</h2>
+  <div class="grid">
+    <article class="card">
+      <h3>Tipos de solicitud</h3>
+      <form method="post" action="{{ url_for('create_request_type') }}">
+        <label>Nombre <input name="name" required></label>
+        <label>Correos de notificación (separados por coma)
+          <textarea name="notification_emails"></textarea>
+        </label>
+        <button type="submit">Crear tipo</button>
+      </form>
+      <ul>
+        {% for item in types %}
+          <li>{{ item.name }} → {{ item.notification_emails }}</li>
+        {% else %}
+          <li>Sin tipos.</li>
+        {% endfor %}
+      </ul>
+    </article>
+
+    <article class="card">
+      <h3>Clases de ticket</h3>
+      <form method="post" action="{{ url_for('create_ticket_class') }}">
+        <label>Nombre <input name="name" required></label>
+        <label>Descripción <textarea name="description"></textarea></label>
+        <button type="submit">Crear clase</button>
+      </form>
+      {% for cls in classes %}
+      <details>
+        <summary>{{ cls.name }} - {{ cls.description }}</summary>
+        <h4>Campos</h4>
+        <ul>
+          {% for field in cls.fields %}
+            <li>{{ field.label }} ({{ field.key }}) - {{ field.data_type }}/{{ field.control_type }} {% if field.options %}[{{ field.options }}]{% endif %}</li>
+          {% else %}
+            <li>Sin campos definidos.</li>
+          {% endfor %}
+        </ul>
+
+        <form method="post" action="{{ url_for('create_field', class_id=cls.id) }}">
+          <label>Etiqueta <input name="label" required></label>
+          <label>Key <input name="key" required></label>
+          <label>Tipo de dato
+            <select name="data_type">
+              <option value="string">String</option>
+              <option value="numeric">Numérico</option>
+              <option value="text">Text</option>
+              <option value="date">Date</option>
+            </select>
+          </label>
+          <label>Control
+            <select name="control_type">
+              <option value="textfield">Textfield</option>
+              <option value="textbox">Textbox</option>
+              <option value="combo">Combo box</option>
+              <option value="radio">Radio button</option>
+              <option value="multi">Lista múltiple</option>
+            </select>
+          </label>
+          <label>Opciones (coma separadas) <input name="options"></label>
+          <label><input type="checkbox" name="required" value="1"> Requerido</label>
+          <button type="submit">Agregar campo</button>
+        </form>
+
+        <form method="post" enctype="multipart/form-data" action="{{ url_for('upload_template', class_id=cls.id) }}">
+          <label>Adjunto de clase <input type="file" name="template_attachment"></label>
+          <button type="submit">Subir adjunto</button>
+        </form>
+      </details>
+      {% else %}
+      <p>Sin clases de ticket.</p>
+      {% endfor %}
+    </article>
+  </div>
+</section>
+{% endblock %}

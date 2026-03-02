@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block content %}
+<section>
+  <h2>Listado de tickets</h2>
+  <form method="get" class="card filters">
+    <label>Estado
+      <select name="status">
+        <option value="">Todos</option>
+        {% for state in ['abierto', 'aprobado', 'respondido', 'cerrado'] %}
+          <option value="{{ state }}" {% if filters.status == state %}selected{% endif %}>{{ state }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Tipo
+      <select name="request_type_id">
+        <option value="">Todos</option>
+        {% for item in types %}
+          <option value="{{ item.id }}" {% if filters.request_type_id == item.id|string %}selected{% endif %}>{{ item.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Clase
+      <select name="ticket_class_id">
+        <option value="">Todas</option>
+        {% for item in classes %}
+          <option value="{{ item.id }}" {% if filters.ticket_class_id == item.id|string %}selected{% endif %}>{{ item.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Creador
+      <input type="text" name="creator" value="{{ filters.creator }}">
+    </label>
+    <button type="submit">Filtrar</button>
+  </form>
+
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Título</th>
+        <th>Clase</th>
+        <th>Tipo</th>
+        <th>Estado</th>
+        <th>Path</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ticket in tickets %}
+      <tr>
+        <td>#{{ ticket.id }}</td>
+        <td><a href="{{ url_for('view_ticket', access_path=ticket.access_path) }}">{{ ticket.title }}</a></td>
+        <td>{{ ticket.ticket_class.name }}</td>
+        <td>{{ ticket.request_type.name }}</td>
+        <td>{{ ticket.status }}</td>
+        <td><code>/tickets/{{ ticket.access_path }}</code></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6">Sin resultados.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
