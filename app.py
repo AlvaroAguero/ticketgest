@@ -21,7 +21,7 @@ BASE_DIR = Path(__file__).resolve().parent
 UPLOAD_DIR = BASE_DIR / "uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder="app/templates", static_folder="app/static", static_url_path="/static")
 app.config["SECRET_KEY"] = "ticketgest-dev"
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///ticketgest.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
