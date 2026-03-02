@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+instance/
+uploads/*
+!uploads/.gitkeep
+ticketgest.db
+notification.log
+.venv/

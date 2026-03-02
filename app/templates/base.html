@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TicketGest</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+<header>
+  <h1>TicketGest</h1>
+  <nav>
+    <a href="{{ url_for('index') }}">Tickets</a>
+    <a href="{{ url_for('create_ticket') }}">Nuevo ticket</a>
+    <a href="{{ url_for('admin_panel') }}">Administración</a>
+  </nav>
+</header>
+<main>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <p class="flash {{ category }}">{{ message }}</p>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>
