@@ -28,18 +28,6 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
 
-profile_ticket_class = db.Table(
-    "profile_ticket_class",
-    db.Column("profile_id", db.Integer, db.ForeignKey("profile.id"), primary_key=True),
-    db.Column("ticket_class_id", db.Integer, db.ForeignKey("ticket_class.id"), primary_key=True),
-)
-
-role_profile = db.Table(
-    "role_profile",
-    db.Column("role_id", db.Integer, db.ForeignKey("role.id"), primary_key=True),
-    db.Column("profile_id", db.Integer, db.ForeignKey("profile.id"), primary_key=True),
-)
-
 
 class RequestType(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -54,35 +42,7 @@ class TicketClass(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), unique=True, nullable=False)
     description = db.Column(db.Text, nullable=True)
-    request_type_id = db.Column(db.Integer, db.ForeignKey("request_type.id"), nullable=False)
-    request_type = db.relationship("RequestType")
     fields = db.relationship("FieldDefinition", backref="ticket_class", cascade="all, delete-orphan")
-
-
-class Profile(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(120), unique=True, nullable=False)
-    ticket_classes = db.relationship("TicketClass", secondary=profile_ticket_class, backref="profiles")
-
-
-class Role(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(120), unique=True, nullable=False)
-    profiles = db.relationship("Profile", secondary=role_profile, backref="roles")
-
-
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(255), unique=True, nullable=False)
-    role_id = db.Column(db.Integer, db.ForeignKey("role.id"), nullable=False)
-    role = db.relationship("Role")
-
-    def allowed_ticket_classes(self) -> list[TicketClass]:
-        class_map: dict[int, TicketClass] = {}
-        for profile in self.role.profiles:
-            for ticket_class in profile.ticket_classes:
-                class_map[ticket_class.id] = ticket_class
-        return sorted(class_map.values(), key=lambda item: item.name.lower())
 
 
 class FieldDefinition(db.Model):
@@ -90,8 +50,8 @@ class FieldDefinition(db.Model):
     ticket_class_id = db.Column(db.Integer, db.ForeignKey("ticket_class.id"), nullable=False)
     label = db.Column(db.String(120), nullable=False)
     key = db.Column(db.String(120), nullable=False)
-    data_type = db.Column(db.String(20), nullable=False)
-    control_type = db.Column(db.String(30), nullable=False)
+    data_type = db.Column(db.String(20), nullable=False)  # string, numeric, text, date
+    control_type = db.Column(db.String(30), nullable=False)  # textfield, textbox, combo, radio, multi
     options = db.Column(db.Text, nullable=True)
     required = db.Column(db.Boolean, nullable=False, default=False)
 
@@ -193,28 +153,22 @@ def index():
     if creator:
         query = query.filter(TicketInstance.creator_email.contains(creator.strip()))
 
+    tickets = query.all()
     return render_template(
         "index.html",
-        tickets=query.all(),
+        tickets=tickets,
         classes=TicketClass.query.order_by(TicketClass.name).all(),
         types=RequestType.query.order_by(RequestType.name).all(),
-        filters={
-            "status": status or "",
-            "request_type_id": request_type_id or "",
-            "ticket_class_id": ticket_class_id or "",
-            "creator": creator or "",
-        },
+        filters={"status": status or "", "request_type_id": request_type_id or "", "ticket_class_id": ticket_class_id or "", "creator": creator or ""},
     )
 
 
 @app.route("/tickets/new", methods=["GET", "POST"])
 def create_ticket():
-    user_email = request.values.get("user_email", "").strip().lower()
-    selected_user = User.query.filter_by(email=user_email).first() if user_email else None
-    allowed_classes = selected_user.allowed_ticket_classes() if selected_user else TicketClass.query.order_by(TicketClass.name).all()
-
+    classes = TicketClass.query.order_by(TicketClass.name).all()
+    types = RequestType.query.order_by(RequestType.name).all()
     class_id = request.values.get("class_id", type=int)
-    selected_class = next((item for item in allowed_classes if item.id == class_id), None) if class_id else None
+    selected_class = TicketClass.query.get(class_id) if class_id else None
 
     if request.method == "POST" and selected_class:
         form_data = {}
@@ -222,14 +176,14 @@ def create_ticket():
             value = request.form.getlist(field.key) if field.control_type == "multi" else request.form.get(field.key, "")
             if field.required and not value:
                 flash(f"El campo {field.label} es obligatorio", "danger")
-                return redirect(url_for("create_ticket", class_id=class_id, user_email=user_email))
+                return redirect(url_for("create_ticket", class_id=class_id))
             form_data[field.key] = value
 
         ticket = TicketInstance(
             title=request.form["title"],
             creator_email=request.form["creator_email"],
             ticket_class_id=selected_class.id,
-            request_type_id=selected_class.request_type_id,
+            request_type_id=request.form.get("request_type_id", type=int),
             form_data=form_data,
         )
         db.session.add(ticket)
@@ -255,15 +209,11 @@ def create_ticket():
         flash(f"Ticket #{ticket.id} creado", "success")
         return redirect(url_for("view_ticket", access_path=ticket.access_path))
 
-    templates = TicketTemplateAttachment.query.filter_by(ticket_class_id=selected_class.id).all() if selected_class else []
+    templates = (
+        TicketTemplateAttachment.query.filter_by(ticket_class_id=selected_class.id).all() if selected_class else []
+    )
     return render_template(
-        "ticket_form.html",
-        classes=allowed_classes,
-        selected_class=selected_class,
-        templates=templates,
-        users=User.query.order_by(User.email).all(),
-        selected_user=selected_user,
-        user_email=user_email,
+        "ticket_form.html", classes=classes, types=types, selected_class=selected_class, templates=templates
     )
 
 
@@ -274,13 +224,16 @@ def view_ticket(access_path: str):
     if request.method == "POST":
         previous_status = ticket.status
         new_status = request.form.get("new_status", ticket.status)
+        actor = request.form["actor_email"]
+        comment = request.form.get("comment", "")
+        action = request.form.get("action", "Actualización")
         ticket.status = new_status
 
         log = TicketChangeLog(
             ticket_id=ticket.id,
-            actor_email=request.form["actor_email"],
-            action=request.form.get("action", "Actualización"),
-            comment=request.form.get("comment", ""),
+            actor_email=actor,
+            action=action,
+            comment=comment,
             previous_status=previous_status,
             new_status=new_status,
             data_snapshot=ticket.form_data,
@@ -297,6 +250,7 @@ def view_ticket(access_path: str):
             db.session.add(TicketLogAttachment(log_id=log.id, original_filename=log_upload[0], stored_filename=log_upload[1]))
 
         db.session.commit()
+
         if previous_status != new_status:
             notify_status_change(ticket, previous_status, new_status)
         flash("Ticket actualizado", "success")
@@ -312,15 +266,13 @@ def admin_panel():
         "admin.html",
         classes=TicketClass.query.order_by(TicketClass.name).all(),
         types=RequestType.query.order_by(RequestType.name).all(),
-        profiles=Profile.query.order_by(Profile.name).all(),
-        roles=Role.query.order_by(Role.name).all(),
-        users=User.query.order_by(User.email).all(),
     )
 
 
 @app.route("/admin/request-types", methods=["POST"])
 def create_request_type():
-    db.session.add(RequestType(name=request.form["name"], notification_emails=request.form.get("notification_emails", "")))
+    req = RequestType(name=request.form["name"], notification_emails=request.form.get("notification_emails", ""))
+    db.session.add(req)
     db.session.commit()
     flash("Tipo de solicitud creado", "success")
     return redirect(url_for("admin_panel"))
@@ -328,71 +280,25 @@ def create_request_type():
 
 @app.route("/admin/ticket-classes", methods=["POST"])
 def create_ticket_class():
-    request_type_id = request.form.get("request_type_id", type=int)
-    if not request_type_id:
-        flash("Debe seleccionar un tipo de solicitud", "danger")
-        return redirect(url_for("admin_panel"))
-    db.session.add(
-        TicketClass(
-            name=request.form["name"],
-            description=request.form.get("description", ""),
-            request_type_id=request_type_id,
-        )
-    )
+    tc = TicketClass(name=request.form["name"], description=request.form.get("description", ""))
+    db.session.add(tc)
     db.session.commit()
     flash("Clase de ticket creada", "success")
     return redirect(url_for("admin_panel"))
 
 
-@app.route("/admin/profiles", methods=["POST"])
-def create_profile():
-    ticket_class_ids = request.form.getlist("ticket_class_ids")
-    profile = Profile(name=request.form["name"])
-    if ticket_class_ids:
-        profile.ticket_classes = TicketClass.query.filter(TicketClass.id.in_(ticket_class_ids)).all()
-    db.session.add(profile)
-    db.session.commit()
-    flash("Perfil creado", "success")
-    return redirect(url_for("admin_panel"))
-
-
-@app.route("/admin/roles", methods=["POST"])
-def create_role():
-    profile_ids = request.form.getlist("profile_ids")
-    role = Role(name=request.form["name"])
-    if profile_ids:
-        role.profiles = Profile.query.filter(Profile.id.in_(profile_ids)).all()
-    db.session.add(role)
-    db.session.commit()
-    flash("Rol creado", "success")
-    return redirect(url_for("admin_panel"))
-
-
-@app.route("/admin/users", methods=["POST"])
-def create_user():
-    role_id = request.form.get("role_id", type=int)
-    if not role_id:
-        flash("Debe seleccionar un rol", "danger")
-        return redirect(url_for("admin_panel"))
-    db.session.add(User(email=request.form["email"].strip().lower(), role_id=role_id))
-    db.session.commit()
-    flash("Usuario creado", "success")
-    return redirect(url_for("admin_panel"))
-
-
 @app.route("/admin/ticket-classes/<int:class_id>/fields", methods=["POST"])
 def create_field(class_id: int):
-    db.session.add(
-        FieldDefinition(
-            ticket_class_id=class_id,
-            label=request.form["label"],
-            key=request.form["key"],
-            data_type=request.form["data_type"],
-            control_type=request.form["control_type"],
-            options=request.form.get("options", ""),
-            required=bool(request.form.get("required")),
-        )
+    field = FieldDefinition(
+        ticket_class_id=class_id,
+        label=request.form["label"],
+        key=request.form["key"],
+        data_type=request.form["data_type"],
+        control_type=request.form["control_type"],
+        options=request.form.get("options", ""),
+        required=bool(request.form.get("required")),
     )
+    db.session.add(field)
     db.session.commit()
     flash("Campo agregado", "success")
     return redirect(url_for("admin_panel"))
