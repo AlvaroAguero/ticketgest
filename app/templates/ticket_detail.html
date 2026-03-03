@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block content %}
+<section>
+  <h2>Ticket #{{ ticket.id }} - {{ ticket.title }}</h2>
+  <p><strong>Path:</strong> <code>/tickets/{{ ticket.access_path }}</code></p>
+  <p><strong>Estado:</strong> {{ ticket.status }}</p>
+  <p><strong>Clase:</strong> {{ ticket.ticket_class.name }} | <strong>Tipo:</strong> {{ ticket.request_type.name }}</p>
+  <p><strong>Creador:</strong> {{ ticket.creator_email }}</p>
+
+  <h3>Datos del formulario</h3>
+  <ul>
+    {% for key, value in ticket.form_data.items() %}
+      <li><strong>{{ key }}:</strong> {{ value }}</li>
+    {% endfor %}
+  </ul>
+
+  {% if templates %}
+  <h3>Adjuntos de clase para descargar</h3>
+  <ul>
+    {% for item in templates %}
+    <li><a href="{{ url_for('download_file', stored_filename=item.stored_filename) }}">{{ item.original_filename }}</a></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  <h3>Adjuntos de la instancia</h3>
+  <ul>
+    {% for item in ticket.attachments %}
+      <li><a href="{{ url_for('download_file', stored_filename=item.stored_filename) }}">{{ item.original_filename }}</a></li>
+    {% else %}
+      <li>Sin adjuntos</li>
+    {% endfor %}
+  </ul>
+
+  <h3>Actualizar ticket</h3>
+  <form method="post" enctype="multipart/form-data" class="card">
+    <label>Actor (correo) <input type="email" name="actor_email" required></label>
+    <label>Acción <input name="action" placeholder="Aprobación/Respuesta/Cierre"></label>
+    <label>Nuevo estado
+      <select name="new_status">
+        {% for state in ['abierto', 'aprobado', 'respondido', 'cerrado'] %}
+          <option value="{{ state }}" {% if ticket.status == state %}selected{% endif %}>{{ state }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Comentario <textarea name="comment"></textarea></label>
+    <label>Adjunto al ticket <input type="file" name="ticket_attachment"></label>
+    <label>Adjunto de bitácora <input type="file" name="log_attachment"></label>
+    <button type="submit">Guardar cambios</button>
+  </form>
+
+  <h3>Bitácora</h3>
+  <ol>
+    {% for log in ticket.logs|sort(attribute='created_at', reverse=True) %}
+    <li>
+      <p><strong>{{ log.created_at }}</strong> - {{ log.action }} por {{ log.actor_email }} ({{ log.previous_status }} → {{ log.new_status }})</p>
+      <p>{{ log.comment }}</p>
+      <ul>
+        {% for file in log.attachments %}
+          <li><a href="{{ url_for('download_file', stored_filename=file.stored_filename) }}">{{ file.original_filename }}</a></li>
+        {% else %}
+          <li>Sin adjuntos en esta entrada.</li>
+        {% endfor %}
+      </ul>
+    </li>
+    {% else %}
+      <li>Sin cambios registrados.</li>
+    {% endfor %}
+  </ol>
+</section>
+{% endblock %}

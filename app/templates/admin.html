@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+{% block content %}
+<section>
+  <h2>Panel de administración</h2>
+  <div class="grid">
+    <article class="card">
+      <h3>Tipos de solicitud</h3>
+      <form method="post" action="{{ url_for('create_request_type') }}">
+        <label>Nombre <input name="name" required></label>
+        <label>Correos de notificación (separados por coma)
+          <textarea name="notification_emails"></textarea>
+        </label>
+        <button type="submit">Crear tipo</button>
+      </form>
+      <ul>
+        {% for item in types %}
+          <li>{{ item.name }} → {{ item.notification_emails }}</li>
+        {% else %}
+          <li>Sin tipos.</li>
+        {% endfor %}
+      </ul>
+    </article>
+
+    <article class="card">
+      <h3>Clases de ticket</h3>
+      <form method="post" action="{{ url_for('create_ticket_class') }}">
+        <label>Nombre <input name="name" required></label>
+        <label>Descripción <textarea name="description"></textarea></label>
+        <label>Tipo de solicitud asociado
+          <select name="request_type_id" required>
+            <option value="">Seleccione...</option>
+            {% for item in types %}
+              <option value="{{ item.id }}">{{ item.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <button type="submit">Crear clase</button>
+      </form>
+      {% for cls in classes %}
+      <details>
+        <summary>{{ cls.name }} - {{ cls.description }} (Tipo: {{ cls.request_type.name }})</summary>
+        <h4>Campos</h4>
+        <ul>
+          {% for field in cls.fields %}
+            <li>{{ field.label }} ({{ field.key }}) - {{ field.data_type }}/{{ field.control_type }} {% if field.options %}[{{ field.options }}]{% endif %}</li>
+          {% else %}
+            <li>Sin campos definidos.</li>
+          {% endfor %}
+        </ul>
+
+        <form method="post" action="{{ url_for('create_field', class_id=cls.id) }}">
+          <label>Etiqueta <input name="label" required></label>
+          <label>Key <input name="key" required></label>
+          <label>Tipo de dato
+            <select name="data_type">
+              <option value="string">String</option>
+              <option value="numeric">Numérico</option>
+              <option value="text">Text</option>
+              <option value="date">Date</option>
+            </select>
+          </label>
+          <label>Control
+            <select name="control_type">
+              <option value="textfield">Textfield</option>
+              <option value="textbox">Textbox</option>
+              <option value="combo">Combo box</option>
+              <option value="radio">Radio button</option>
+              <option value="multi">Lista múltiple</option>
+            </select>
+          </label>
+          <label>Opciones (coma separadas) <input name="options"></label>
+          <label><input type="checkbox" name="required" value="1"> Requerido</label>
+          <button type="submit">Agregar campo</button>
+        </form>
+
+        <form method="post" enctype="multipart/form-data" action="{{ url_for('upload_template', class_id=cls.id) }}">
+          <label>Adjunto de clase <input type="file" name="template_attachment"></label>
+          <button type="submit">Subir adjunto</button>
+        </form>
+      </details>
+      {% else %}
+      <p>Sin clases de ticket.</p>
+      {% endfor %}
+    </article>
+
+    <article class="card">
+      <h3>Perfiles</h3>
+      <form method="post" action="{{ url_for('create_profile') }}">
+        <label>Nombre <input name="name" required></label>
+        <label>Clases permitidas
+          <select name="ticket_class_ids" multiple>
+            {% for cls in classes %}
+              <option value="{{ cls.id }}">{{ cls.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <button type="submit">Crear perfil</button>
+      </form>
+      <ul>
+        {% for profile in profiles %}
+          <li>{{ profile.name }} → {{ profile.ticket_classes|map(attribute='name')|join(', ') or 'sin clases' }}</li>
+        {% else %}
+          <li>Sin perfiles.</li>
+        {% endfor %}
+      </ul>
+    </article>
+
+    <article class="card">
+      <h3>Roles</h3>
+      <form method="post" action="{{ url_for('create_role') }}">
+        <label>Nombre <input name="name" required></label>
+        <label>Perfiles asociados
+          <select name="profile_ids" multiple>
+            {% for profile in profiles %}
+              <option value="{{ profile.id }}">{{ profile.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <button type="submit">Crear rol</button>
+      </form>
+      <ul>
+        {% for role in roles %}
+          <li>{{ role.name }} → {{ role.profiles|map(attribute='name')|join(', ') or 'sin perfiles' }}</li>
+        {% else %}
+          <li>Sin roles.</li>
+        {% endfor %}
+      </ul>
+    </article>
+
+    <article class="card">
+      <h3>Usuarios</h3>
+      <form method="post" action="{{ url_for('create_user') }}">
+        <label>Correo <input name="email" type="email" required></label>
+        <label>Rol
+          <select name="role_id" required>
+            <option value="">Seleccione...</option>
+            {% for role in roles %}
+              <option value="{{ role.id }}">{{ role.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <button type="submit">Crear usuario</button>
+      </form>
+      <ul>
+        {% for user in users %}
+          <li>{{ user.email }} → {{ user.role.name }}</li>
+        {% else %}
+          <li>Sin usuarios.</li>
+        {% endfor %}
+      </ul>
+    </article>
+  </div>
+</section>
+{% endblock %}

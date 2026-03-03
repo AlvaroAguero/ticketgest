@@ -1,0 +1,15 @@
+body { font-family: Arial, sans-serif; margin: 0; background: #f5f6fb; }
+header { background: #1d3557; color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+nav a { color: white; margin-left: 1rem; text-decoration: none; }
+main { padding: 1rem 2rem; }
+.card { background: white; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+label { display: block; margin-bottom: .75rem; }
+input, select, textarea, button { display: block; width: 100%; padding: .45rem; margin-top: .25rem; }
+button { width: auto; background: #1d3557; color: white; border: none; padding: .5rem .9rem; border-radius: 4px; cursor: pointer; }
+table { width: 100%; border-collapse: collapse; background: white; }
+th, td { border: 1px solid #ddd; padding: .5rem; text-align: left; }
+.flash { padding: .5rem .75rem; border-radius: 5px; }
+.flash.success { background: #d8f3dc; }
+.flash.danger { background: #f8d7da; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.filters { display: grid; grid-template-columns: repeat(5, minmax(130px, 1fr)); gap: .75rem; align-items: end; }
