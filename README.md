@@ -5,9 +5,13 @@ Sistema de ticketera en Flask para crear, aprobar, responder y cerrar tickets co
 ## Funcionalidades
 
 - Definición de **tipos de solicitud** con lista de correos para notificaciones.
-- Definición de **clases de ticket** con campos dinámicos (string, numeric, text, date).
+- Definición de **clases de ticket** con campos dinámicos (string, numeric, text, date) y vínculo obligatorio a un tipo de solicitud.
 - Soporte de controles: textfield, textbox, combo, radio, lista múltiple.
-- Creación de instancias con:
+- Gestión de seguridad con **perfil/rol/usuario**:
+  - Perfil: acceso a clases de ticket.
+  - Rol: conjunto de perfiles.
+  - Usuario: correo + rol asociado.
+- Creación de instancias con filtro opcional por usuario (muestra clases permitidas por rol/perfil) y con:
   - ID numérico.
   - Path de acceso directo (`/tickets/<access_path>`).
   - Adjunto a nivel instancia.
